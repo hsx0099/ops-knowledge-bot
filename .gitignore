@@ -1,0 +1,27 @@
+# 密钥/环境变量
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.venv/
+venv/
+
+# 运行时生成的目录
+chroma_db/
+uploads/
+
+# 日志和临时文件
+*.log
+api_test.txt
+pip_install*.log
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
