@@ -31,7 +31,7 @@ st.markdown("上传你的运维文档，用自然语言提问，AI帮你找答�
 with st.sidebar:
     st.header("📁 知识库管理")
 
-        # 上传文件（支持一次选多个）
+    # 上传文件（支持一次选多个）
     uploaded_files = st.file_uploader(
         "上传文档（支持PDF/TXT/Markdown，可多选）",
         type=["pdf", "txt", "md"],
