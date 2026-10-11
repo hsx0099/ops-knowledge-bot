@@ -14,7 +14,8 @@ def get_embeddings() -> OpenAIEmbeddings:
     return OpenAIEmbeddings(
         model="text-embedding-v4",
         openai_api_key=os.getenv("DASHSCOPE_API_KEY"),
-        openai_api_base="https://dashscope.aliyuncs.com/compatible-mode/v1"
+        openai_api_base="https://dashscope.aliyuncs.com/compatible-mode/v1",
+        check_embedding_ctx_length=False
     )
 
 
