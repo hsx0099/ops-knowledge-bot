@@ -31,31 +31,34 @@ st.markdown("上传你的运维文档，用自然语言提问，AI帮你找答�
 with st.sidebar:
     st.header("📁 知识库管理")
 
-    # 上传文件
-    uploaded_file = st.file_uploader(
-        "上传文档（支持PDF/TXT/Markdown）",
-        type=["pdf", "txt", "md"]
+        # 上传文件（支持一次选多个）
+    uploaded_files = st.file_uploader(
+        "上传文档（支持PDF/TXT/Markdown，可多选）",
+        type=["pdf", "txt", "md"],
+        accept_multiple_files=True
     )
 
-    if uploaded_file and st.button("🚀 上传并建立知识库", type="primary"):
-        with st.spinner("正在处理文档..."):
-            # 1. 保存上传的文件到临时目录
+    if uploaded_files and st.button("🚀 上传并建立知识库", type="primary"):
+        with st.spinner(f"正在处理 {len(uploaded_files)} 个文档..."):
             os.makedirs("uploads", exist_ok=True)
-            file_path = f"uploads/{uploaded_file.name}"
-            with open(file_path, "wb") as f:
-                f.write(uploaded_file.getbuffer())
+            all_docs = []
 
-            # 2. 加载文档
-            docs = load_document(file_path)
+            for f in uploaded_files:
+                file_path = f"uploads/{f.name}"
+                with open(file_path, "wb") as out:
+                    out.write(f.getbuffer())
+                docs = load_document(file_path)
+                all_docs.extend(docs)
 
-            # 3. 切分文档
-            chunks = split_documents(docs)
-
-            # 4. 创建向量数据库
+            chunks = split_documents(all_docs)
             vector_store = create_vector_store(chunks)
 
             st.session_state["vector_store"] = vector_store
-            st.success(f"✅ 知识库建立成功！共 {len(chunks)} 个文档块")
+            st.success(
+                f"✅ 知识库建立成功！共 {len(uploaded_files)} 个文件，"
+                f"{len(all_docs)} 段原文，切成 {len(chunks)} 个文档块"
+            )
+
 
     st.divider()
 
