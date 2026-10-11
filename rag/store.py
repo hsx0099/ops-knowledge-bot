@@ -10,9 +10,9 @@ import os
 
 
 def get_embeddings() -> OpenAIEmbeddings:
-    """获取 Embedding 模型（通义千问 text-embedding-v2）"""
+    """获取 Embedding 模型（通义千问 text-embedding-v4）"""
     return OpenAIEmbeddings(
-        model="text-embedding-v2",
+        model="text-embedding-v4",
         openai_api_key=os.getenv("DASHSCOPE_API_KEY"),
         openai_api_base="https://dashscope.aliyuncs.com/compatible-mode/v1"
     )
