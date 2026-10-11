@@ -16,6 +16,7 @@ def get_embeddings() -> OpenAIEmbeddings:
         openai_api_key=os.getenv("DASHSCOPE_API_KEY"),
         openai_api_base="https://dashscope.aliyuncs.com/compatible-mode/v1",
         check_embedding_ctx_length=False
+        chunk_size=10
     )
 
 
