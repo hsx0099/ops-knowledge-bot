@@ -19,6 +19,27 @@ from config import LLM_MODEL, LLM_BASE_URL
 
 load_dotenv()
 
+MEMORY_FILE = "memory.json"
+
+
+# ============ 记忆：读写会话历史 ============
+def load_memory() -> list:
+    """启动时读 memory.json，把上次的对话带回来"""
+    if not os.path.exists(MEMORY_FILE):
+        return []
+    try:
+        with open(MEMORY_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return []
+
+
+def save_memory(messages: list):
+    """会话结束后，把对话历史存到 memory.json"""
+    with open(MEMORY_FILE, "w", encoding="utf-8") as f:
+        json.dump(messages, f, ensure_ascii=False, indent=2)
+
+
 # 初始化客户端（和 chain.py 里用的是同一个模型、同一个 base_url）
 client = OpenAI(
     api_key=os.getenv("DASHSCOPE_API_KEY"),
@@ -57,11 +78,48 @@ def write_config(customer_name: str, greeting: str) -> str:
     return f"已生成配置文件 {filename}，内容：\n{json.dumps(config, ensure_ascii=False, indent=2)}"
 
 
+def build_knowledge_base(docs_dir: str, customer_name: str) -> str:
+    """
+    真工具：遍历 docs_dir 里所有 PDF/TXT/MD，
+    加载 → 切分 → 建向量库，存到 customers/{customer_name}/chroma_db
+    """
+    from rag.loader import load_document
+    from rag.splitter import split_documents
+    from rag.store import create_vector_store
+
+    if not os.path.isdir(docs_dir):
+        return f"❌ 目录 {docs_dir} 不存在"
+
+    all_docs = []
+    supported = (".pdf", ".txt", ".md")
+    for fname in os.listdir(docs_dir):
+        if fname.lower().endswith(supported):
+            path = os.path.join(docs_dir, fname)
+            docs = load_document(path)
+            all_docs.extend(docs)
+
+    if not all_docs:
+        return f"❌ 在 {docs_dir} 里没找到 PDF/TXT/MD 文件"
+
+    chunks = split_documents(all_docs)
+    persist_dir = f"customers/{customer_name}/chroma_db"
+    vs = create_vector_store(chunks, persist_directory=persist_dir)
+
+    return (
+        f"✅ 已为客户 {customer_name} 建好知识库：\n"
+        f"   - 源文件目录: {docs_dir}\n"
+        f"   - 文档段数: {len(all_docs)}\n"
+        f"   - 切分后块数: {len(chunks)}\n"
+        f"   - 向量库位置: {persist_dir}"
+    )
+
+
 # 把上面的函数装进一个字典，名字 → 函数本体
 TOOLS_FUNCTIONS = {
     "list_files": list_files,
     "read_text_file": read_text_file,
     "write_config": write_config,
+    "build_knowledge_base": build_knowledge_base,
 }
 
 
@@ -105,6 +163,21 @@ TOOLS_SCHEMA = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "build_knowledge_base",
+            "description": "把指定目录里的所有 PDF/TXT/MD 文档建成向量知识库，存到 customers/{客户名}/chroma_db",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "docs_dir": {"type": "string", "description": "存放文档的目录路径"},
+                    "customer_name": {"type": "string", "description": "客户名称，用于隔离向量库目录"},
+                },
+                "required": ["docs_dir", "customer_name"],
+            },
+        },
+    },
 ]
 
 
@@ -139,14 +212,22 @@ def run_agent(user_message: str):
     print(f"\n📋 Agent 计划:\n{plan}\n")
     print(f"{'-'*60}\n开始执行...\n{'-'*60}")
 
-    # ② 再进入工具循环
+    # ② 加载上次的记忆
+    past_memory = load_memory()
+    memory_summary = "；".join([
+        f"{m.get('role','?')}: {m.get('content','')[:100]}"
+        for m in past_memory[-5:]  # 只带最近 5 条，避免上下文太长
+    ]) if past_memory else "（这是第一次对话，之前没有记录）"
+
+    # ③ 进入工具循环
     messages = [
         {
             "role": "system",
             "content": "你是一个项目助手。按上面的计划逐步执行。"
                        "需要用工具时就调用，所有工具调用完成后，用中文给用户一个总结。"
                        "如果某个工具调用失败（文件不存在、参数错误等），请阅读错误信息，"
-                       "换个路径或换个工具重试，不要直接放弃。",
+                       "换个路径或换个工具重试，不要直接放弃。"
+                       f"\n\n【你之前做过的事】：{memory_summary}",
         },
         {"role": "user", "content": f"需求：{user_message}\n计划：{plan}"},
     ]
@@ -191,10 +272,17 @@ def run_agent(user_message: str):
             continue
 
         # 2b. 模型不调工具了，直接给最终回答
-        print(f"\n🤖 助手: {msg.content}")
+        final_answer = msg.content
+        print(f"\n🤖 助手: {final_answer}")
         break
+
+    # ④ 把这次对话存进记忆
+    save_memory([
+        {"role": "user", "content": user_message},
+        {"role": "assistant", "content": final_answer},
+    ] + past_memory)
 
 
 if __name__ == "__main__":
-    # ReAct 测试：故意让模型读一个不存在的文件，看它会不会读错误信息后换个文件
-    run_agent("帮我读一下 not_exist.py 这个文件，然后告诉我项目结构")
+    # 测试记忆：这次不告诉它建过库，看它记不记得上次做过什么
+    run_agent("我上次让你给哪个客户建了知识库？向量库存在哪？")

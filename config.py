@@ -35,7 +35,7 @@ RETRIEVAL_TOP_K = 3     # 每次提问，从库里取最相关的几块塞给大
 # ============ 5. 模型参数 ============
 # 通义千问（阿里云百炼），走 OpenAI 兼容接口
 LLM_MODEL = "qwen-plus"
-EMBEDDING_MODEL = "text-embedding-v2"
+EMBEDDING_MODEL = "text-embedding-v4"
 LLM_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
 LLM_TEMPERATURE = 0.7   # 0=严谨保守，1=自由发挥
 # API Key 不要写在这里！放在 .env 文件里，通过环境变量 DASHSCOPE_API_KEY 读取
