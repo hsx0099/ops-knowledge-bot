@@ -19,6 +19,8 @@ def get_embeddings() -> OpenAIEmbeddings:
         model=EMBEDDING_MODEL,
         openai_api_key=os.getenv("DASHSCOPE_API_KEY"),
         openai_api_base=LLM_BASE_URL,
+        check_embedding_ctx_length=False,
+        chunk_size=10,
     )
 
 
