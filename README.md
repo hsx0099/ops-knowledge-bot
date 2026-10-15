@@ -88,7 +88,9 @@ streamlit run ui.py
 
 ```
 ops-knowledge-bot/
-├── ui.py              # Streamlit 主界面
+├── ui.py              # Streamlit 主界面（RAG 问答）
+├── agent.py           # Agent 实验：Plan-and-Execute + ReAct
+├── config.py          # 全局配置（换客户只改这里）
 ├── requirements.txt   # 依赖清单
 ├── .env.example       # API Key 配置模板
 ├── .env               # 你的真实 Key（不要提交到 Git）
@@ -103,15 +105,35 @@ ops-knowledge-bot/
 └── chroma_db/         # 向量数据库持久化（自动创建）
 ```
 
+## 🤖 Agent 实验（agent.py）
+
+除了 RAG 问答，这个仓库还包含一个**手写的最小 Agent**，不依赖 LangChain AgentExecutor，直接用 openai SDK 的 tools 参数实现：
+
+- **单 Agent 循环**：模型自己决定调哪个工具，Python 执行后把结果喂回去
+- **Plan-and-Execute**：复杂任务先输出步骤清单，再按计划执行
+- **ReAct 容错**：工具报错时把错误信息返回给模型，它自己换路径/换工具重试
+
+内置 3 个工具：
+- `list_files()`：列出当前目录
+- `read_text_file(path)`：读文本文件
+- `write_config(customer_name, greeting)`：生成客户配置 JSON
+
+运行：
+```bash
+python agent.py
+```
+
 ## 🔧 可调参数
 
-| 参数 | 位置 | 作用 |
-|---|---|---|
-| `chunk_size` | `rag/splitter.py` | 每块文档大小，默认 500 字 |
-| `chunk_overlap` | `rag/splitter.py` | 相邻块重叠字数，默认 50 |
-| `k` | `ui.py` 里 `similarity_search(..., k=3)` | 检索几条最相关文档 |
-| `model` | `rag/chain.py` | 换成 `qwen-turbo` 更便宜，`qwen-max` 更聪明 |
-| `temperature` | `rag/chain.py` | 0=严谨，1=发散 |
+所有参数集中在 **`config.py`**，换客户/换场景只改这一个文件：
+
+| 参数 | 作用 |
+|---|---|
+| `APP_NAME` / `WELCOME_MESSAGE` | 界面标题和欢迎语 |
+| `CHUNK_SIZE` / `CHUNK_OVERLAP` | 文档切分大小 |
+| `RETRIEVAL_TOP_K` | 每次检索几条相关文档 |
+| `LLM_MODEL` / `EMBEDDING_MODEL` | 换模型（qwen-plus / qwen-turbo / qwen-max） |
+| `SYSTEM_PROMPT_TEMPLATE` | AI 的回答规则 |
 
 ## ❓ 常见问题
 
